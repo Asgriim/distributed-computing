@@ -25,13 +25,21 @@ void free_pipes_mtx(uint64_t proc_num) {
     free(pipes_matrix);
 }
 
+void non_blocking_fd(int32_t fd){
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 int64_t open_pipes(uint64_t proc_num) {
+    int32_t pipes = 0;
     alloc_pipes_mtx(proc_num);
 
     for (int i = 0; i < proc_num; ++i) {
-        for (int j = 0; j < proc_num; ++j) {
+        for (int j = i + 1; j < proc_num; ++j) {
 
-
+            if (i == j) {
+                continue;
+            }
             int32_t pipe1[2]; // Parent -> Child
             int32_t pipe2[2]; // Child -> Parent
 
@@ -39,32 +47,54 @@ int64_t open_pipes(uint64_t proc_num) {
                 perror("pipe");
                 return -1;
             }
-
+            pipes += 2;
             pipes_matrix[i][j].read_fd = pipe1[0];
             pipes_matrix[i][j].write_fd = pipe2[1];
-
-            int flags = fcntl(pipe1[0], F_GETFL, 0);
-            fcntl(pipe1[0], F_SETFL, flags | O_NONBLOCK);
 
             pipes_matrix[j][i].read_fd = pipe2[0];
             pipes_matrix[j][i].write_fd = pipe1[1];
 
 
-            flags = fcntl(pipe2[0], F_GETFL, 0);
-            fcntl(pipe2[0], F_SETFL, flags | O_NONBLOCK);
+            non_blocking_fd(pipe1[0]);
+            non_blocking_fd(pipe2[0]);
+//            non_blocking_fd(pipe1[1]);
+//            non_blocking_fd(pipe2[1]);
+
+
+        }
+
+    }
+//    close_pipes_other(proc_num, 0);
+//    printf("total pipes %d\n", pipes);
+    return 0;
+}
+
+
+int64_t close_pipes_my(uint64_t proc_num, int32_t id) {
+
+    for (int i = 0; i < proc_num; ++i) {
+        if (i == id) {
+            close(pipes_matrix[id][i].read_fd);
+            close(pipes_matrix[id][i].write_fd);
         }
     }
     return 0;
 }
 
-int64_t close_pipes(uint64_t proc_num) {
+int64_t close_pipes_other(uint64_t proc_num, int32_t id) {
 
     for (int i = 0; i < proc_num; ++i) {
+        if (id == i) {
+            continue;
+        }
         for (int j = 0; j < proc_num; ++j) {
+            if (i == j) {
+                continue;
+            }
             close(pipes_matrix[i][j].read_fd);
             close(pipes_matrix[i][j].write_fd);
         }
     }
-    free_pipes_mtx(proc_num);
     return 0;
 }
+

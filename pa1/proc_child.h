@@ -11,7 +11,8 @@
 
 #include "pipes.h"
 #include "ipc.h"
-
+#include <unistd.h>
+#include <sys/types.h>
 
 struct child_pipes {
     local_id owner_id;
@@ -21,5 +22,5 @@ struct child_pipes {
     struct pipe_struct *connected_pipes;
 };
 
-int64_t child_loop(int64_t id, uint64_t child_num, struct pipe_struct connected_pipes[]);
+int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[]);
 #endif //DISTT_SYS_PROC_CHILD_H

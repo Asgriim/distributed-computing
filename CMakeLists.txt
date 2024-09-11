@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(distt_sys C)
 
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 99)
 
 
 #execute_process(COMMAND bash -c "tar -czf pa1.tar.gz ../pa1" )
@@ -13,7 +13,7 @@ add_custom_target(create_tar ALL
         COMMENT "Creating tarball"
 )
 
-add_compile_options(-Wall -pedantic)
+add_compile_options(-Wall -pedantic -std=c99)
 
 file(GLOB SRC_FILES pa1/*.c)
 

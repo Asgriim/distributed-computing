@@ -20,5 +20,7 @@ void free_pipes_mtx(uint64_t proc_num);
 
 int64_t open_pipes(uint64_t proc_num);
 
-int64_t close_pipes(uint64_t proc_num);
+int64_t close_pipes_my(uint64_t proc_num, int32_t id);
+
+int64_t close_pipes_other(uint64_t proc_num, int32_t id);
 #endif //DISTT_SYS_PIPES_H

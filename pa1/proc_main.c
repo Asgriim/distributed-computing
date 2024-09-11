@@ -3,12 +3,12 @@
 //
 
 #include <stdlib.h>
-#include <signal.h>
-#include <stdio.h>
+//#include <signal.h>
+//#include <stdio.h>
 #include <sys/wait.h>
 
 #include "proc_main.h"
-#include "pa1.h"
+//#include "pa1.h"
 #include "pipes.h"
 #include "proc_child.h"
 #include "logs.h"
@@ -52,11 +52,11 @@ int64_t create_children(const uint64_t child_num) {
     return (int64_t) child_num;
 }
 
-void kill_children(const uint64_t child_num) {
-    for (int i = 0; i < child_num; ++i) {
-        kill(child_id_arr[i], SIGILL);
-    }
-}
+//void kill_children(const uint64_t child_num) {
+//    for (int i = 0; i < child_num; ++i) {
+//        kill(child_id_arr[i], SIGKILL);
+//    }
+//}
 
 int32_t wait_child(pid_t pid) {
     int32_t status = 0;
@@ -76,15 +76,17 @@ int64_t proc_main_init(uint64_t child_num) {
     alloc_proc_ids(child_num);
     open_pipes(child_num + 1);
     int64_t fork_stat = create_children(child_num);
-//
-    if (fork_stat == -1) {
 
+
+    //exit if child process
+    if (fork_stat == -1) {
         return -1;
     }
 
-    if (fork_stat != child_num) {
-        kill_children(fork_stat);
-    }
+    //kill if failed to create children
+//    if (fork_stat != child_num) {
+//        kill_children(fork_stat);
+//    }
 
     return 0;
 }
@@ -93,10 +95,12 @@ int64_t proc_main_exit(uint64_t child_num) {
 
 
     if (getpid() == parent_pid) {
+        close_pipes_other(child_num + 1, PARENT_ID);
         wait_all(child_num);
         free_proc_ids();
-        close_pipes(child_num + 1);
+        close_pipes_my(child_num + 1, PARENT_ID);
         close_logfile();
+        free_pipes_mtx(child_num + 1);
     }
 
 

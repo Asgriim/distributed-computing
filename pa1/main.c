@@ -1,10 +1,9 @@
 #include <stdio.h>
-#include <stdint-gcc.h>
 #include <getopt.h>
 #include <stdlib.h>
 
 #include "proc_main.h"
-#include "pipes.h"
+
 int main(int argc, char *argv[]) {
     uint8_t par_name = 'p';
     uint64_t child_num = 0;
@@ -13,7 +12,6 @@ int main(int argc, char *argv[]) {
     }
 
     int64_t rez = 0;
-
 
     //get number of procs
     while (rez != -1) {
@@ -26,7 +24,9 @@ int main(int argc, char *argv[]) {
 
     int64_t init_status = proc_main_init(child_num);
 
-    proc_main_exit(child_num);
+    if (init_status == 0) {
+        proc_main_exit(child_num);
+    }
 
     return 0;
 }
