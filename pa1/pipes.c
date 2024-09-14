@@ -31,7 +31,6 @@ void non_blocking_fd(int32_t fd){
 }
 
 int64_t open_pipes(uint64_t proc_num) {
-    int32_t pipes = 0;
     alloc_pipes_mtx(proc_num);
 
     for (int i = 0; i < proc_num; ++i) {
@@ -47,7 +46,6 @@ int64_t open_pipes(uint64_t proc_num) {
                 perror("pipe");
                 return -1;
             }
-            pipes += 2;
             pipes_matrix[i][j].read_fd = pipe1[0];
             pipes_matrix[i][j].write_fd = pipe2[1];
 
@@ -64,8 +62,6 @@ int64_t open_pipes(uint64_t proc_num) {
         }
 
     }
-//    close_pipes_other(proc_num, 0);
-//    printf("total pipes %d\n", pipes);
     return 0;
 }
 

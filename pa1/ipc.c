@@ -34,7 +34,6 @@ int receive_any(void *self, Message *msg) {
         if (stat != -1) {
             cp->received_from = i;
             stat = read(cp->connected_pipes[i].read_fd, msg->s_payload, msg->s_header.s_payload_len);
-//            printf("msg head %d\n", msg->s_header.s_payload_len);
             return 0;
         }
     }

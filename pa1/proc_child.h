@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "pipes.h"
 #include "ipc.h"
@@ -23,4 +24,9 @@ struct child_pipes {
 };
 
 int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[]);
+
+
+void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len);
+
+void set_up_message_fmt(Message *mes, MessageType type, const char *format, ...);
 #endif //DISTT_SYS_PROC_CHILD_H

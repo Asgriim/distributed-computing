@@ -8,7 +8,7 @@
 #include "logs.h"
 #include <string.h>
 
-int32_t proc_num = 0;
+static int32_t proc_num = 0;
 
 
 void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, MessageType type) {
@@ -30,8 +30,6 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
     pid_t pid = getpid();
     close_pipes_other(proc_num, id);
 
-//    open_pipes_my(proc_num, id);
-//    int16_t bitmask = create_bitmask(id, child_num);
     struct child_pipes cp = {
             .owner_id = id,
             .proc_num = proc_num,
@@ -42,43 +40,62 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     write_log_started(id, pid, parent_pid);
 
-    Message *message = malloc(sizeof(Message));
-    message->s_header.s_magic = MESSAGE_MAGIC;
-    message->s_header.s_type = STARTED;
+    Message *mes = malloc(sizeof(Message));
 
-    memset(message->s_payload, 0, MAX_PAYLOAD_LEN);
 
-    int32_t len = sprintf(message->s_payload, log_started_fmt ,id, pid, parent_pid);
-    message->s_header.s_payload_len = len;
+    set_up_message_fmt(mes,
+                       STARTED,
+                       log_started_fmt,
+                       id,
+                       pid,
+                       parent_pid);
 
-    if (send_multicast(&cp, message) == -1 ) {
+    if (send_multicast(&cp, mes) == -1 ) {
         exit(-1);
     }
 
-    wait_all_responded(id, &cp, message, STARTED);
+    wait_all_responded(id, &cp, mes, STARTED);
 
     write_log_received_all_started(id);
+
     write_log_done(id);
 
-    message->s_header.s_magic = MESSAGE_MAGIC;
-    message->s_header.s_type = DONE;
-    memset(message->s_payload, 0, MAX_PAYLOAD_LEN);
+    set_up_message_fmt(mes,
+                       DONE,
+                       log_done_fmt,
+                       id);
 
-    len = sprintf(message->s_payload, log_done_fmt ,id);
-    message->s_header.s_payload_len = len;
-
-
-    if (send_multicast(&cp, message) == -1 ) {
+    if (send_multicast(&cp, mes) == -1 ) {
         exit(-1);
-    };
+    }
 
-    wait_all_responded(id,  &cp, message, DONE);
+    wait_all_responded(id, &cp, mes, DONE);
 
     write_log_received_all_done(id);
 
-    free(message);
+    free(mes);
     exit(0);
     return 0;
+}
+
+void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len) {
+    mes->s_header.s_magic = MESSAGE_MAGIC;
+    mes->s_header.s_type = type;
+    memset(mes->s_payload, 0, MAX_PAYLOAD_LEN);
+    memcpy(mes->s_payload, buf, len);
+    mes->s_header.s_payload_len = len;
+}
+
+void set_up_message_fmt(Message *mes, MessageType type, const char *format, ...) {
+    mes->s_header.s_magic = MESSAGE_MAGIC;
+    mes->s_header.s_type = type;
+    memset(mes->s_payload, 0, MAX_PAYLOAD_LEN);
+
+    va_list args;
+    va_start(args, format);
+
+    int32_t len = sprintf(mes->s_payload, format, args);
+    mes->s_header.s_payload_len = len;
 }
 
 
