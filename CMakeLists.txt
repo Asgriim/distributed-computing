@@ -3,21 +3,29 @@ project(distt_sys C)
 
 set(CMAKE_C_STANDARD 99)
 
+set(LAB_NUM 2)
+set(TARGET lab${LAB_NUM})
+string(REPLACE "%" ${LAB_NUM} TAR_COMMAND "tar -czf pa%.tar.gz pa%" )
+#set(TAR_COMMAND "tar -czf pa"${LAB_NUM}".tar.gz pa${LAB_NUM}")
 
-#execute_process(COMMAND bash -c "tar -czf pa1.tar.gz ../pa1" )
-
+message(${TAR_COMMAND})
 # Create a custom target to run the command
 add_custom_target(create_tar ALL
-        COMMAND bash -c "tar -czf pa1.tar.gz pa1"
+        COMMAND bash -c "${TAR_COMMAND}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Creating tarball"
 )
 
-add_compile_options(-Wall -pedantic -std=c99)
+add_compile_options(-Wall -pedantic -std=c99 )
 
-file(GLOB SRC_FILES pa1/*.c)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/pa${LAB_NUM}/lib64)
 
-add_executable(lab1 ${SRC_FILES})
+file(GLOB SRC_FILES pa${LAB_NUM}/*.c)
+
+add_executable(${TARGET} ${SRC_FILES})
 
 # Make the executable depend on the custom target
-add_dependencies(lab1 create_tar)
+add_dependencies(${TARGET} create_tar)
+
+target_link_libraries(${TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/pa${LAB_NUM}/lib64/libruntime.so)
+

@@ -1,5 +1,5 @@
 /**
- * @file     pa1.h
+ * @file     pa2.h
  * @Author   Michael Kosyakov and Evgeniy Ivanov (ifmo.distributedclass@gmail.com)
  * @date     March, 2014
  * @brief    Constants for programming assignment 1
