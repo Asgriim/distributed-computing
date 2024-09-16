@@ -6,7 +6,6 @@ set(CMAKE_C_STANDARD 99)
 set(LAB_NUM 2)
 set(TARGET lab${LAB_NUM})
 string(REPLACE "%" ${LAB_NUM} TAR_COMMAND "tar -czf pa%.tar.gz pa%" )
-#set(TAR_COMMAND "tar -czf pa"${LAB_NUM}".tar.gz pa${LAB_NUM}")
 
 message(${TAR_COMMAND})
 # Create a custom target to run the command

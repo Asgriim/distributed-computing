@@ -55,8 +55,8 @@ int64_t open_pipes(uint64_t proc_num) {
 
             non_blocking_fd(pipe1[0]);
             non_blocking_fd(pipe2[0]);
-//            non_blocking_fd(pipe1[1]);
-//            non_blocking_fd(pipe2[1]);
+            non_blocking_fd(pipe1[1]);
+            non_blocking_fd(pipe2[1]);
 
 
         }
