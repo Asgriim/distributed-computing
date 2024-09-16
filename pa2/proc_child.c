@@ -43,14 +43,97 @@ void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state
 
 }
 
+void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceState *balance_state) {
+    TransferOrder order;
+    memcpy(&order, mes->s_payload, mes->s_header.s_payload_len);
+    timestamp_t  timestamp = get_physical_time();
+    balance_state->s_time = timestamp;
+
+    if (order.s_src == id) {
+        balance_state->s_balance -= order.s_amount;
+        send(cp, order.s_dst, mes);
+        return;
+    }
+    if (order.s_dst == id) {
+        balance_state->s_balance += order.s_amount;
+        set_up_message(mes, ACK, NULL, 0);
+        send(cp, PARENT_ID, mes);
+        return;
+    }
+
+    printf("ERROR IN TRANSFER HANDLE\n");
+}
+
+uint16_t create_bitmask(int32_t id, int32_t child_num) {
+    return (~(1 << (id - 1))) & (0xFFFF >> (16 - child_num));
+}
+
+void lower_bitmask(uint16_t *bitmask, int32_t received_from) {
+    *bitmask &= ~(1 << (received_from - 1));
+}
+
+
+void handle_message(int32_t id, Message *mes, struct child_pipes *cp, BalanceState *balance_state, BalanceHistory *balance_history, bool *stop, uint16_t *done_bitmask) {
+    switch (mes->s_header.s_type) {
+        case TRANSFER: {
+            handle_transfer(id, cp, mes, balance_state);
+            update_history(balance_history, balance_state);
+            break;
+        }
+
+        case STOP: {
+            //todo implement 3rd fase when not all transfers readed
+            write_log_fmt(log_done_fmt,
+                          get_physical_time(),
+                          id,
+                          balance_state->s_balance
+            );
+            set_up_message(mes, DONE, NULL, 0);
+
+            if (send_multicast(cp, mes) == -1 ) {
+                exit(-1);
+            }
+            *stop = true;
+            break;
+        }
+
+        case DONE: {
+            lower_bitmask(done_bitmask, cp->received_from);
+            break;
+        }
+    }
+}
+
+void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipes *cp, BalanceState *balance_state, BalanceHistory *balance_history) {
+    uint16_t done_bitmask = create_bitmask(id, child_num);
+    bool received_stop = false;
+    //todo move to listen() method
+    while (!received_stop || done_bitmask != 0) {
+        //handling incoming messages
+        if (receive_any(cp, mes) == 0) {
+            handle_message(
+                    id,
+                    mes,
+                    cp,
+                    balance_state,
+                    balance_history,
+                    &received_stop,
+                    &done_bitmask
+            );
+        }
+    }
+}
 
 int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[], balance_t start_balance) {
+
+
+
     proc_num = child_num + 1;
     pid_t parent_pid = getppid();
     pid_t pid = getpid();
     close_pipes_other(proc_num, id);
 
-    BalanceHistory balanceHistory = {.s_id = id, .s_history_len = 0};
+    BalanceHistory balance_history = {.s_id = id, .s_history_len = 0};
     BalanceState balance_state;
 
     struct child_pipes cp = {
@@ -65,7 +148,7 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
     balance_state.s_time = timestamp;
     balance_state.s_balance = start_balance;
 
-    update_history(&balanceHistory, &balance_state);
+    update_history(&balance_history, &balance_state);
 
     write_log_fmt(log_started_fmt,
                   timestamp,
@@ -100,34 +183,19 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
                   id
     );
 
-    bool received_stop = false;
+    child_listen(id, child_num, mes, &cp, &balance_state, &balance_history);
 
-    while (!received_stop) {
-        //handling incoming messages
-       if (receive_any(&cp, mes) == 0) {
+    write_log_fmt(
+                  log_received_all_done_fmt,
+                  get_physical_time(),
+                  id
+                  );
 
-           switch (mes->s_header.s_type) {
-               case TRANSFER: {
-                   write_log_fmt("%d proc received TRANS mes \n", id);
-                   break;
-               }
-               case STOP: {
-                   write_log_fmt("%d proc received STOP mes \n", id);
-                   //todo implement calculation of history byte size
-                   printf("sizeof(Balance hist ) = %lu\n", sizeof(BalanceHistory));
-                   set_up_message(mes, BALANCE_HISTORY, (char *) &balanceHistory,
-                                  sizeof(BalanceHistory)
-                                  );
+    set_up_message(mes, BALANCE_HISTORY, (char *) &balance_history,
+                   sizeof(BalanceHistory)
+    );
 
-                   send(&cp, PARENT_ID, mes);
-                   received_stop = true;
-                   break;
-               }
-
-           }
-        }
-    }
-
+    send(&cp, PARENT_ID, mes);
     free(mes);
     exit(0);
     return 0;

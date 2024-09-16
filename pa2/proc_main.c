@@ -135,14 +135,12 @@ int64_t proc_main_loop(uint64_t child_num) {
 
     wait_all_responded(PARENT_ID, &cp, mes, STARTED);
     //todo implement
-    printf("PARENT RECEIVED ALL STARTED \n");
     set_up_message(mes, STOP, NULL, 0);
 
     send_multicast(&cp, mes);
 
     wait_all_history_balance(&cp, mes, &allHistory);
 
-    printf("PARENT RECEIVED ALL BALANCE \n");
     wait_all(child_num);
     print_history(&allHistory);
 
