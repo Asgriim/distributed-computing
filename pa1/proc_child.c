@@ -18,7 +18,7 @@ void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, Me
         }
 
         //todo damn
-        while (receive(cp, i, message) != 0 && message->s_header.s_type != type) {
+        while (receive(cp, i, message) != 0 || message->s_header.s_type != type) {
 
         }
     }
