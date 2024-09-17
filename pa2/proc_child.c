@@ -15,22 +15,26 @@
 static int32_t proc_num = 0;
 
 
+void wait_responded(int32_t from, struct child_pipes *cp, Message *message, MessageType type) {
+    while (receive(cp, from, message) != 0 || message->s_header.s_type != type) {
+
+    }
+}
+
 void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, MessageType type) {
     for (int i = 1; i < proc_num; ++i) {
         if (i == id) {
             continue;
         }
 
-        while (receive(cp, i, message) != 0 || message->s_header.s_type != type) {
-
-        }
+        wait_responded(i, cp, message, type);
     }
 }
 
 void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state) {
     if (balanceHistory->s_history_len > 0) {
 
-        for (int i = balanceHistory->s_history_len; i <= balance_state->s_time; ++i) {
+        for (int i = balanceHistory->s_history_len; i <= get_physical_time(); ++i) {
             balanceHistory->s_history[i] = *balance_state;
         }
 
@@ -48,13 +52,32 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceSt
     memcpy(&order, mes->s_payload, mes->s_header.s_payload_len);
     timestamp_t  timestamp = get_physical_time();
     balance_state->s_time = timestamp;
-
     if (order.s_src == id) {
+
+        write_log_fmt(
+                log_transfer_out_fmt,
+                get_physical_time(),
+                id,
+                order.s_amount,
+                order.s_dst
+                );
+
         balance_state->s_balance -= order.s_amount;
+//        printf("proc %d, time = %d, bal = %d\n", id, timestamp, balance_state->s_balance);
         send(cp, order.s_dst, mes);
         return;
     }
+
     if (order.s_dst == id) {
+
+        write_log_fmt(
+                log_transfer_in_fmt,
+                get_physical_time(),
+                id,
+                order.s_amount,
+                order.s_dst
+        );
+
         balance_state->s_balance += order.s_amount;
         set_up_message(mes, ACK, NULL, 0);
         send(cp, PARENT_ID, mes);
@@ -107,7 +130,6 @@ void handle_message(int32_t id, Message *mes, struct child_pipes *cp, BalanceSta
 void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipes *cp, BalanceState *balance_state, BalanceHistory *balance_history) {
     uint16_t done_bitmask = create_bitmask(id, child_num);
     bool received_stop = false;
-    //todo move to listen() method
     while (!received_stop || done_bitmask != 0) {
         //handling incoming messages
         if (receive_any(cp, mes) == 0) {
@@ -125,9 +147,6 @@ void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipe
 }
 
 int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[], balance_t start_balance) {
-
-
-
     proc_num = child_num + 1;
     pid_t parent_pid = getppid();
     pid_t pid = getpid();
@@ -191,6 +210,8 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
                   id
                   );
 
+    update_history(&balance_history, &balance_state);
+
     set_up_message(mes, BALANCE_HISTORY, (char *) &balance_history,
                    sizeof(BalanceHistory)
     );
@@ -233,5 +254,7 @@ void set_up_message_fmt(Message *mes, MessageType type, const char *format, ...)
 
     va_end(args);
 }
+
+
 
 

@@ -10,7 +10,7 @@ FILE *logfile;
 
 int32_t open_logfile() {
 
-    logfile = fopen(events_log, "w");
+    logfile = fopen(events_log, "a");
     return 0;
 }
 

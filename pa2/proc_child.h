@@ -33,4 +33,6 @@ void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len);
 void set_up_message_fmt(Message *mes, MessageType type, const char *format, ...);
 
 void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, MessageType type);
+
+void wait_responded(int32_t from, struct child_pipes *cp, Message *message, MessageType type);
 #endif //DISTT_SYS_PROC_CHILD_H
