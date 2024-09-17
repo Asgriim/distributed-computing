@@ -31,27 +31,31 @@ void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, Me
     }
 }
 
+//todo rewrite this
 void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state) {
+//    printf("DEBUG proc=%d his-len=%d, baltime=%d, bal=%d cur_time =%d\n",balanceHistory->s_id, balanceHistory->s_history_len, balance_state->s_time, balance_state->s_balance, get_physical_time());
     if (balanceHistory->s_history_len > 0) {
-
-        for (int i = balanceHistory->s_history_len; i <= get_physical_time(); ++i) {
+        int32_t start = balanceHistory->s_history_len;
+        for (int i = start; i <= get_physical_time(); ++i) {
             balanceHistory->s_history[i] = *balance_state;
+            balanceHistory->s_history[i].s_time = (timestamp_t)i;
+            balanceHistory->s_history_len++;
         }
-
 
     } else {
         balanceHistory->s_history[0] = *balance_state;
+        balanceHistory->s_history_len = 1;
     }
 
-    balanceHistory->s_history_len = balance_state->s_time + 1;
 
 }
 
-void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceState *balance_state) {
+void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHistory  *balanceHistory, BalanceState *balance_state) {
     TransferOrder order;
     memcpy(&order, mes->s_payload, mes->s_header.s_payload_len);
-    timestamp_t  timestamp = get_physical_time();
-    balance_state->s_time = timestamp;
+
+    update_history(balanceHistory, balance_state);
+
     if (order.s_src == id) {
 
         write_log_fmt(
@@ -63,6 +67,8 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceSt
                 );
 
         balance_state->s_balance -= order.s_amount;
+        balance_state->s_time = get_physical_time();
+        balanceHistory->s_history[ get_physical_time()] = *balance_state;
 //        printf("proc %d, time = %d, bal = %d\n", id, timestamp, balance_state->s_balance);
         send(cp, order.s_dst, mes);
         return;
@@ -75,10 +81,12 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceSt
                 get_physical_time(),
                 id,
                 order.s_amount,
-                order.s_dst
+                order.s_src
         );
 
         balance_state->s_balance += order.s_amount;
+        balance_state->s_time = get_physical_time();
+        balanceHistory->s_history[get_physical_time()] = *balance_state;
         set_up_message(mes, ACK, NULL, 0);
         send(cp, PARENT_ID, mes);
         return;
@@ -97,10 +105,10 @@ void lower_bitmask(uint16_t *bitmask, int32_t received_from) {
 
 
 void handle_message(int32_t id, Message *mes, struct child_pipes *cp, BalanceState *balance_state, BalanceHistory *balance_history, bool *stop, uint16_t *done_bitmask) {
+
     switch (mes->s_header.s_type) {
         case TRANSFER: {
-            handle_transfer(id, cp, mes, balance_state);
-            update_history(balance_history, balance_state);
+            handle_transfer(id, cp, mes, balance_history, balance_state);
             break;
         }
 
