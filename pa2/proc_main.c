@@ -137,7 +137,6 @@ int64_t proc_main_loop(uint64_t child_num) {
     wait_all_responded(PARENT_ID, &cp, mes, STARTED);
     bank_robbery(&cp, child_num);
 
-    //todo implement
     set_up_message(mes, STOP, NULL, 0);
 
     send_multicast(&cp, mes);

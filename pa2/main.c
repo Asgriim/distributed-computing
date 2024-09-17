@@ -24,9 +24,9 @@ int main(int argc, char *argv[]) {
     }
 
     int64_t init_status = proc_main_init(child_num, balances);
+    proc_main_loop(child_num);
 
     if (init_status == 0) {
-        proc_main_loop(child_num);
         return (int)proc_main_exit(child_num);
     }
 

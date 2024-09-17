@@ -31,7 +31,7 @@ int receive_any(void *self, Message *msg) {
         }
 
         stat = read(cp->connected_pipes[i].read_fd, msg, sizeof(MessageHeader));
-        if (stat != -1) {
+        if (stat > 0) {
             cp->received_from = i;
             stat = read(cp->connected_pipes[i].read_fd, msg->s_payload, msg->s_header.s_payload_len);
             return 0;
