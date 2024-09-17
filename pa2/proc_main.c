@@ -27,7 +27,7 @@ void free_proc_ids(void) {
 
 //return number of successfully created child procs
 int64_t create_children(const uint64_t child_num, balance_t *balances) {
-    proc_num = child_num + 1;
+
     pid_t pid;
     for (int i = 0; i < child_num; ++i) {
         pid = fork();
@@ -70,6 +70,7 @@ int32_t wait_all(uint64_t child_num) {
 
 int64_t proc_main_init(uint64_t child_num, balance_t *balances) {
     open_logfile();
+    proc_num = child_num + 1;
     parent_pid = getpid();
     alloc_proc_ids(child_num);
     open_pipes(child_num + 1);
@@ -121,7 +122,7 @@ void wait_all_history_balance(struct child_pipes *cp, Message *message, AllHisto
 
 
 int64_t proc_main_loop(uint64_t child_num) {
-    close_pipes_other(proc_num, PARENT_ID);
+    close_pipes_main(proc_num);
 
     struct child_pipes cp = {
             .owner_id = PARENT_ID,
@@ -146,5 +147,19 @@ int64_t proc_main_loop(uint64_t child_num) {
     wait_all(child_num);
     print_history(&allHistory);
 
+    return 0;
+}
+
+int64_t close_pipes_main(uint64_t proc_num) {
+
+    for (int i = 1; i < proc_num; ++i) {
+        for (int j = 0; j < proc_num; ++j) {
+            if (i == j) {
+                continue;
+            }
+            close(pipes_matrix[i][j].read_fd);
+            close(pipes_matrix[i][j].write_fd);
+        }
+    }
     return 0;
 }

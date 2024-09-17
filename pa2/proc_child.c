@@ -226,6 +226,7 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     send(&cp, PARENT_ID, mes);
     free(mes);
+    close_pipes_my(proc_num, id);
     exit(0);
     return 0;
 }
