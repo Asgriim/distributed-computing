@@ -1,6 +1,8 @@
-#include "banking.h"
-#include "pipes.h"
-#include "proc_child.h"
+#include <stdio.h>
+#include <getopt.h>
+#include <stdlib.h>
+
+#include "proc_main.h"
 
 void transfer(void * parent_data, local_id src, local_id dst,
               balance_t amount)
@@ -17,11 +19,8 @@ void transfer(void * parent_data, local_id src, local_id dst,
     wait_responded(dst, cp, mes, ACK);
 
 }
-
+//
 //int main(int argc, char * argv[])
 //{
-//    //bank_robbery(parent_data);
-//    //print_history(all);
-//
-//    return 0;
+
 //}

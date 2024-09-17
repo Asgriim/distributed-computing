@@ -67,9 +67,8 @@ int64_t open_pipes(uint64_t proc_num) {
 
 
 int64_t close_pipes_my(uint64_t proc_num, int32_t id) {
-
     for (int i = 0; i < proc_num; ++i) {
-        if (i == id) {
+        if (i != id) {
             close(pipes_matrix[id][i].read_fd);
             close(pipes_matrix[id][i].write_fd);
         }
@@ -84,7 +83,7 @@ int64_t close_pipes_other(uint64_t proc_num, int32_t id) {
             continue;
         }
         for (int j = 0; j < proc_num; ++j) {
-            if (i == j) {
+            if (i == j || id == j) {
                 continue;
             }
             close(pipes_matrix[i][j].read_fd);
