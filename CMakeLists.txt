@@ -3,7 +3,7 @@ project(distt_sys C)
 
 set(CMAKE_C_STANDARD 99)
 
-set(LAB_NUM 2)
+set(LAB_NUM 3)
 set(TARGET lab${LAB_NUM})
 string(REPLACE "%" ${LAB_NUM} TAR_COMMAND "tar -czf pa%.tar.gz pa%" )
 
