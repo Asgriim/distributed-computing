@@ -10,7 +10,7 @@
 #include "logs.h"
 #include "proc_child.h"
 #include "pa2345.h"
-
+#include "utils.h"
 
 static int32_t proc_num = 0;
 
@@ -28,6 +28,9 @@ void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, Me
         }
 
         wait_responded(i, cp, message, type);
+
+        set_lamport_time(message->s_header.s_local_time);
+        inc_lamport_time();
     }
 }
 
@@ -36,7 +39,7 @@ void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state
 //    printf("DEBUG proc=%d his-len=%d, baltime=%d, bal=%d cur_time =%d\n",balanceHistory->s_id, balanceHistory->s_history_len, balance_state->s_time, balance_state->s_balance, get_physical_time());
     if (balanceHistory->s_history_len > 0) {
         int32_t start = balanceHistory->s_history_len;
-        for (int i = start; i <= get_physical_time(); ++i) {
+        for (int i = start; i <= get_lamport_time(); ++i) {
             balanceHistory->s_history[i] = *balance_state;
             balanceHistory->s_history[i].s_time = (timestamp_t)i;
             balanceHistory->s_history_len++;
@@ -58,17 +61,22 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHi
 
     if (order.s_src == id) {
 
+
+        balance_state->s_balance_pending_in = order.s_amount;
+        balance_state->s_balance -= order.s_amount;
+        balance_state->s_time = get_lamport_time();
+        balanceHistory->s_history[get_lamport_time()] = *balance_state;
+        balance_state->s_balance_pending_in = 0;
+
+
         write_log_fmt(
                 log_transfer_out_fmt,
-                get_physical_time(),
+                get_lamport_time(),
                 id,
                 order.s_amount,
                 order.s_dst
-                );
-
-        balance_state->s_balance -= order.s_amount;
-        balance_state->s_time = get_physical_time();
-        balanceHistory->s_history[ get_physical_time()] = *balance_state;
+        );
+        mes->s_header.s_local_time = get_lamport_time();
 //        printf("proc %d, time = %d, bal = %d\n", id, timestamp, balance_state->s_balance);
         send(cp, order.s_dst, mes);
         return;
@@ -78,15 +86,17 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHi
 
         write_log_fmt(
                 log_transfer_in_fmt,
-                get_physical_time(),
+                get_lamport_time(),
                 id,
                 order.s_amount,
                 order.s_src
         );
 
+        balance_state->s_balance_pending_in = 0;
         balance_state->s_balance += order.s_amount;
-        balance_state->s_time = get_physical_time();
-        balanceHistory->s_history[get_physical_time()] = *balance_state;
+        balance_state->s_time = get_lamport_time();
+        balanceHistory->s_history[get_lamport_time()] = *balance_state;
+        
         set_up_message(mes, ACK, NULL, 0);
         send(cp, PARENT_ID, mes);
         return;
@@ -105,7 +115,6 @@ void lower_bitmask(uint16_t *bitmask, int32_t received_from) {
 
 
 void handle_message(int32_t id, Message *mes, struct child_pipes *cp, BalanceState *balance_state, BalanceHistory *balance_history, bool *stop, uint16_t *done_bitmask) {
-
     switch (mes->s_header.s_type) {
         case TRANSFER: {
             handle_transfer(id, cp, mes, balance_history, balance_state);
@@ -115,10 +124,11 @@ void handle_message(int32_t id, Message *mes, struct child_pipes *cp, BalanceSta
         case STOP: {
             //todo implement 3rd fase when not all transfers readed
             write_log_fmt(log_done_fmt,
-                          get_physical_time(),
+                          get_lamport_time(),
                           id,
                           balance_state->s_balance
             );
+
             set_up_message(mes, DONE, NULL, 0);
 
             if (send_multicast(cp, mes) == -1 ) {
@@ -141,6 +151,9 @@ void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipe
     while (!received_stop || done_bitmask != 0) {
         //handling incoming messages
         if (receive_any(cp, mes) == 0) {
+//            printf("DEBUG proc %d mes localTM=%d, TYPE=%d \n", cp->owner_id, mes->s_header.s_local_time, mes->s_header.s_type);
+            set_lamport_time(mes->s_header.s_local_time);
+            inc_lamport_time();
             handle_message(
                     id,
                     mes,
@@ -170,15 +183,15 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
             .pid = pid
     };
 
-    timestamp_t timestamp = get_physical_time();
 
-    balance_state.s_time = timestamp;
+    balance_state.s_time = get_lamport_time();
     balance_state.s_balance = start_balance;
 
     update_history(&balance_history, &balance_state);
 
+
     write_log_fmt(log_started_fmt,
-                  timestamp,
+                  get_lamport_time(),
                   id,
                   pid,
                   parent_pid,
@@ -187,12 +200,12 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
 
     Message *mes = malloc(sizeof(Message));
-
+    inc_lamport_time();
 
     set_up_message_fmt(mes,
                        STARTED,
                        log_started_fmt,
-                       timestamp,
+                       get_lamport_time(),
                        id,
                        pid,
                        parent_pid,
@@ -205,8 +218,9 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     wait_all_responded(id, &cp, mes, STARTED);
 
+
     write_log_fmt(log_received_all_started_fmt,
-                  timestamp,
+                  get_lamport_time(),
                   id
     );
 
@@ -214,7 +228,7 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     write_log_fmt(
                   log_received_all_done_fmt,
-                  get_physical_time(),
+                  get_lamport_time(),
                   id
                   );
 
@@ -235,7 +249,7 @@ void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len) {
     mes->s_header.s_magic = MESSAGE_MAGIC;
     mes->s_header.s_type = type;
     mes->s_header.s_payload_len = len;
-    mes->s_header.s_local_time = get_physical_time();
+    mes->s_header.s_local_time = get_lamport_time();
 
     memset(mes->s_payload, 0, MAX_PAYLOAD_LEN);
 
@@ -250,7 +264,7 @@ void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len) {
 void set_up_message_fmt(Message *mes, MessageType type, const char *format, ...) {
     mes->s_header.s_magic = MESSAGE_MAGIC;
     mes->s_header.s_type = type;
-    mes->s_header.s_local_time = get_physical_time();
+    mes->s_header.s_local_time = get_lamport_time();
 
     memset(mes->s_payload, 0, MAX_PAYLOAD_LEN);
 

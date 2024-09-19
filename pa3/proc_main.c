@@ -10,6 +10,7 @@
 #include "proc_main.h"
 #include "pipes.h"
 #include "logs.h"
+#include "utils.h"
 
 static pid_t parent_pid;
 
@@ -134,9 +135,14 @@ int64_t proc_main_loop(uint64_t child_num) {
     AllHistory allHistory = {.s_history_len = child_num};
 
     Message *mes = malloc(sizeof(Message));
+
     wait_all_responded(PARENT_ID, &cp, mes, STARTED);
+
+    inc_lamport_time();
+
     bank_robbery(&cp, child_num);
 
+    inc_lamport_time();
     set_up_message(mes, STOP, NULL, 0);
 
     send_multicast(&cp, mes);
