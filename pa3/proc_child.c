@@ -42,11 +42,13 @@ void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state
         for (int i = start; i <= get_lamport_time(); ++i) {
             balanceHistory->s_history[i] = *balance_state;
             balanceHistory->s_history[i].s_time = (timestamp_t)i;
+            balanceHistory->s_history[i].s_balance_pending_in = 0;
             balanceHistory->s_history_len++;
         }
 
     } else {
         balanceHistory->s_history[0] = *balance_state;
+        balanceHistory->s_history[0].s_balance_pending_in = 0;
         balanceHistory->s_history_len = 1;
     }
 
@@ -54,7 +56,7 @@ void update_history(BalanceHistory  *balanceHistory, BalanceState *balance_state
 }
 
 void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHistory  *balanceHistory, BalanceState *balance_state) {
-    TransferOrder order;
+    TransferOrder order = {0,0,0};
     memcpy(&order, mes->s_payload, mes->s_header.s_payload_len);
 
     update_history(balanceHistory, balance_state);
@@ -62,12 +64,13 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHi
     if (order.s_src == id) {
 
 
-        balance_state->s_balance_pending_in = order.s_amount;
+
+        balance_state->s_balance_pending_in = (balance_t)order.s_amount;
         balance_state->s_balance -= order.s_amount;
         balance_state->s_time = get_lamport_time();
         balanceHistory->s_history[get_lamport_time()] = *balance_state;
-        balance_state->s_balance_pending_in = 0;
 
+        inc_lamport_time();
 
         write_log_fmt(
                 log_transfer_out_fmt,
@@ -76,7 +79,20 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHi
                 order.s_amount,
                 order.s_dst
         );
+
         mes->s_header.s_local_time = get_lamport_time();
+
+        // pending stuff
+        if (balance_state->s_time < mes->s_header.s_local_time) {
+            timestamp_t dif = mes->s_header.s_local_time - balance_state->s_time;
+            for (int i = 0; i < dif ; ++i) {
+                balance_state->s_time += 1;
+                balanceHistory->s_history[balance_state->s_time] = *balance_state;
+                balanceHistory->s_history_len++;
+            }
+        }
+        balance_state->s_balance_pending_in = (balance_t)0;
+
 //        printf("proc %d, time = %d, bal = %d\n", id, timestamp, balance_state->s_balance);
         send(cp, order.s_dst, mes);
         return;
@@ -92,11 +108,13 @@ void handle_transfer(int32_t id, struct child_pipes *cp, Message *mes, BalanceHi
                 order.s_src
         );
 
-        balance_state->s_balance_pending_in = 0;
+        balance_state->s_balance_pending_in = (balance_t)0;
         balance_state->s_balance += order.s_amount;
         balance_state->s_time = get_lamport_time();
         balanceHistory->s_history[get_lamport_time()] = *balance_state;
-        
+
+        inc_lamport_time();
+
         set_up_message(mes, ACK, NULL, 0);
         send(cp, PARENT_ID, mes);
         return;
@@ -186,6 +204,7 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     balance_state.s_time = get_lamport_time();
     balance_state.s_balance = start_balance;
+    balance_state.s_balance_pending_in = 0;
 
     update_history(&balance_history, &balance_state);
 
@@ -240,7 +259,7 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
     send(&cp, PARENT_ID, mes);
     free(mes);
-    close_pipes_my(proc_num, id);
+//    close_pipes_my(proc_num, id);
     exit(0);
     return 0;
 }

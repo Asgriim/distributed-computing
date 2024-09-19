@@ -6,7 +6,7 @@
 
 #include "ipc.h"
 #include "proc_child.h"
-
+#include "utils.h"
 
 int send_multicast(void *self, const Message *msg) {
     struct child_pipes *cp = self;
@@ -14,6 +14,7 @@ int send_multicast(void *self, const Message *msg) {
         if (i == cp->owner_id) {
             continue;
         }
+        inc_lamport_time();
         if(write(cp->connected_pipes[i].write_fd, msg, (sizeof(MessageHeader))+ msg->s_header.s_payload_len) == -1) {
             return -1;
         }
@@ -34,6 +35,9 @@ int receive_any(void *self, Message *msg) {
         if (stat > 0) {
             cp->received_from = i;
             stat = read(cp->connected_pipes[i].read_fd, msg->s_payload, msg->s_header.s_payload_len);
+            if (stat < 0) {
+                return -1;
+            }
             return 0;
         }
     }
