@@ -24,4 +24,6 @@ void lock_q_add_req(int32_t id, timestamp_t timestamp);
 void lock_q_release(int32_t id);
 
 bool lock_q_is_ready(int32_t id, timestamp_t timestamp);
+
+int32_t* get_lock_q();
 #endif //DISTT_SYS_UTILS_H

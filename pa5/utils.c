@@ -32,7 +32,7 @@ void lower_bitmask(uint16_t *bitmask, int32_t received_from) {
 
 void init_lock_q() {
     for (int i = 0; i < MAX_PROCESS_ID; ++i) {
-        lock_q[i] = 255;
+        lock_q[i] = INT16_MAX;
     }
 }
 
@@ -41,7 +41,7 @@ void lock_q_add_req(int32_t id, timestamp_t timestamp) {
 }
 
 void lock_q_release(int32_t id) {
-    lock_q[id] = 255;
+    lock_q[id] = INT16_MAX;
 }
 
 bool lock_q_is_ready(int32_t id, timestamp_t timestamp) {
@@ -62,4 +62,8 @@ bool lock_q_is_ready(int32_t id, timestamp_t timestamp) {
     }
     return true;
 
+}
+
+int32_t* get_lock_q() {
+    return lock_q;
 }

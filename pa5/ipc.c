@@ -46,7 +46,7 @@ int receive_any(void *self, Message *msg) {
 int send(void *self, local_id dst, const Message *msg) {
     struct child_pipes *cp = self;
 
-    if(write(cp->connected_pipes[dst].write_fd, msg, (sizeof(MessageHeader))+ msg->s_header.s_payload_len) == -1) {
+    if(write(cp->connected_pipes[dst].write_fd, msg, (sizeof(MessageHeader)) + msg->s_header.s_payload_len) == -1) {
         return -1;
     }
     return 0;

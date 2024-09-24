@@ -23,15 +23,21 @@ int request_cs(const void * self) {
 
     while (lock) {
         if (receive_any(cp, mes) == 0) {
-//            inc_lamport_time();
+            inc_lamport_time();
 //            set_lamport_time(mes->s_header.s_local_time);
-//            printf("DEBUG proc %d received mes_t %d time %d from %d\n", cp->owner_id, mes->s_header.s_type, mes->s_header.s_local_time, cp->received_from);
+//            printf("DEBUG proc %d received mes_t %d time %d from %d owtime %d\n", cp->owner_id, mes->s_header.s_type, mes->s_header.s_local_time, cp->received_from,req_time);
             switch (mes->s_header.s_type) {
                 case CS_REQUEST: {
-                    lock_q_add_req(cp->received_from, mes->s_header.s_local_time);
-                    inc_lamport_time();
-                    set_up_message(mes, CS_REPLY, NULL, 0);
-                    send(cp, cp->received_from, mes);
+
+                    //lose
+                    if (mes->s_header.s_local_time < req_time || (cp->received_from < cp->owner_id && mes->s_header.s_local_time == req_time)) {
+                        inc_lamport_time();
+                        set_up_message(mes, CS_REPLY, NULL, 0);
+                        send(cp, cp->received_from, mes);
+                    } else {
+                        lock_q_add_req(cp->received_from, mes->s_header.s_local_time);
+                    }
+
                     break;
                 }
 
@@ -41,7 +47,7 @@ int request_cs(const void * self) {
                 }
 
                 case CS_RELEASE: {
-                    lock_q_release(cp->received_from);
+//                    lock_q_release(cp->received_from);
                     break;
                 }
                 case DONE: {
@@ -53,12 +59,11 @@ int request_cs(const void * self) {
             }
         }
 
-        if (resp_mask == 0 && lock_q_is_ready(cp->owner_id, req_time)) {
+        if (resp_mask == 0) {
 //            printf("DEBUG proc %d is exiting lock time %d\n", cp->owner_id, get_lamport_time());
             lock = false;
         }
     }
-
     return 0;
 }
 
@@ -66,11 +71,22 @@ int release_cs(const void * self) {
     struct child_pipes *cp = (struct child_pipes *)self;
 
     Message *mes = malloc(sizeof(Message));
+    int32_t *lock_q = get_lock_q();
 
+    inc_lamport_time();
+    set_up_message(mes, CS_REPLY, NULL, 0);
+
+    for (int32_t i = 1; i < MAX_PROCESS_ID; ++i) {
+        if (cp->owner_id == i) {
+            continue;
+        }
+        if (lock_q[i] < INT16_MAX) {
+            send(cp, i, mes);
+            lock_q_release(i);
+        }
+    }
 //    inc_lamport_time();
-    set_up_message(mes, CS_RELEASE, NULL, 0);
-    send_multicast(cp, mes);
-    lock_q_release(cp->owner_id);
+
     return 0;
 }
 
