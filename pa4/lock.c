@@ -23,8 +23,8 @@ int request_cs(const void * self) {
 
     while (lock) {
         if (receive_any(cp, mes) == 0) {
-            inc_lamport_time();
-            set_lamport_time(mes->s_header.s_local_time);
+//            inc_lamport_time();
+//            set_lamport_time(mes->s_header.s_local_time);
 //            printf("DEBUG proc %d received mes_t %d time %d from %d\n", cp->owner_id, mes->s_header.s_type, mes->s_header.s_local_time, cp->received_from);
             switch (mes->s_header.s_type) {
                 case CS_REQUEST: {
@@ -44,6 +44,12 @@ int request_cs(const void * self) {
                     lock_q_release(cp->received_from);
                     break;
                 }
+                case DONE: {
+//                    printf("DEBUG proc %d lower BM %d\n", cp->owner_id, cp->done_bitmask);
+                    lower_bitmask(&cp->done_bitmask, cp->received_from);
+//                    printf("DEBUG proc %d after lower BM %d\n", cp->owner_id, cp->done_bitmask);
+                    break;
+                }
             }
         }
 
@@ -61,7 +67,7 @@ int release_cs(const void * self) {
 
     Message *mes = malloc(sizeof(Message));
 
-    inc_lamport_time();
+//    inc_lamport_time();
     set_up_message(mes, CS_RELEASE, NULL, 0);
     send_multicast(cp, mes);
     lock_q_release(cp->owner_id);

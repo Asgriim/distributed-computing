@@ -45,8 +45,6 @@ void lock_q_release(int32_t id) {
 }
 
 bool lock_q_is_ready(int32_t id, timestamp_t timestamp) {
-    int32_t tmp_time = 255;
-    int32_t tmp_id = MAX_PROCESS_ID;
 
     for (int i = 0; i < MAX_PROCESS_ID; ++i) {
         if (id == i) {

@@ -22,6 +22,7 @@ struct child_pipes {
     local_id owner_id;
     local_id received_from;
     int16_t proc_num;
+    uint16_t done_bitmask;
     pid_t pid;
     struct pipe_struct *connected_pipes;
 };

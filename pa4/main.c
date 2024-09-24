@@ -29,7 +29,11 @@ int main(int argc, char *argv[]) {
     }
 
     int64_t init_status = proc_main_init(child_num, mutexl);
-    proc_main_exit(child_num);
+
+    if (init_status == 0) {
+        proc_main_exit(child_num);
+
+    }
 
 
 

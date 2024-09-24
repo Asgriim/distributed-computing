@@ -36,7 +36,7 @@ void wait_all_responded(int32_t id, struct child_pipes *cp, Message *message, Me
 
 
 
-void handle_message(int32_t id, Message *mes, struct child_pipes *cp, uint16_t *done_bitmask) {
+void handle_message(int32_t id, Message *mes, struct child_pipes *cp) {
     switch (mes->s_header.s_type) {
         case CS_REQUEST: {
             inc_lamport_time();
@@ -46,15 +46,16 @@ void handle_message(int32_t id, Message *mes, struct child_pipes *cp, uint16_t *
         }
 
         case DONE: {
-            lower_bitmask(done_bitmask, cp->received_from);
+//            printf("DEBUG proc %d lower BM\n", id);
+            lower_bitmask(&cp->done_bitmask, cp->received_from);
+//            printf("DEBUG proc %d after lower BM %d\n", cp->owner_id, cp->done_bitmask);
             break;
         }
     }
 }
 
 void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipes *cp) {
-    uint16_t done_bitmask = create_bitmask(id, child_num);
-    while (done_bitmask != 0) {
+    while (cp->done_bitmask != 0) {
 
         //handling incoming messages
         if (receive_any(cp, mes) == 0) {
@@ -64,8 +65,7 @@ void child_listen(int32_t id, int32_t child_num, Message *mes, struct child_pipe
             handle_message(
                     id,
                     mes,
-                    cp,
-                    &done_bitmask
+                    cp
             );
         }
     }
@@ -81,7 +81,8 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
             .owner_id = id,
             .proc_num = proc_num,
             .connected_pipes = connected_pipes,
-            .pid = pid
+            .pid = pid,
+            .done_bitmask = create_bitmask(id, child_num)
     };
     init_lock_q();
 
@@ -158,13 +159,15 @@ int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_p
 
 
 
+
+    child_listen(id, child_num, mes, &cp);
+
     write_log_fmt(log_done_fmt,
                   get_lamport_time(),
                   id,
                   0
     );
 
-    child_listen(id, child_num, mes, &cp);
 
     write_log_fmt(
                   log_received_all_done_fmt,

@@ -61,7 +61,7 @@ int32_t wait_child(pid_t pid) {
 
 int32_t wait_all(uint64_t child_num) {
     for (int i = 0; i < child_num; ++i) {
-        int32_t stat = wait_child(child_id_arr[0]);
+        int32_t stat = wait_child(child_id_arr[i]);
         if (stat != 0) {
             return stat;
         }
@@ -94,7 +94,7 @@ int64_t proc_main_exit(uint64_t child_num) {
     wait_all(child_num);
 
     if (getpid() == parent_pid) {
-        close_pipes_other(proc_num, PARENT_ID);
+//        close_pipes_other(proc_num, PARENT_ID);
         int32_t status = wait_all(child_num);
         if (status != 0) {
             fprintf(stderr,
@@ -106,7 +106,7 @@ int64_t proc_main_exit(uint64_t child_num) {
             return -1;
         }
         free_proc_ids();
-        close_pipes_my(proc_num, PARENT_ID);
+//        close_pipes_my(proc_num, PARENT_ID);
         close_logfile();
         free_pipes_mtx(proc_num);
     }
