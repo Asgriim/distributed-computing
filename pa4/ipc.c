@@ -14,7 +14,6 @@ int send_multicast(void *self, const Message *msg) {
         if (i == cp->owner_id) {
             continue;
         }
-        inc_lamport_time();
         if(write(cp->connected_pipes[i].write_fd, msg, (sizeof(MessageHeader))+ msg->s_header.s_payload_len) == -1) {
             return -1;
         }

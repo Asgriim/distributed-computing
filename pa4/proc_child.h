@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #include "pipes.h"
 #include "ipc.h"
@@ -25,7 +26,7 @@ struct child_pipes {
     struct pipe_struct *connected_pipes;
 };
 
-int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[], balance_t start_balance);
+int64_t child_loop(int32_t id, int32_t child_num, struct pipe_struct connected_pipes[], bool lock);
 
 
 void set_up_message(Message *mes, MessageType type, char *buf, uint16_t len);
